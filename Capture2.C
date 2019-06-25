@@ -1,0 +1,84 @@
+#include <pic18.h>
+
+// Global Variables
+unsigned long int TIME, TIME0, TIME1;
+
+// Interrupt Service Routine
+
+void interrupt IntServe(void) 
+{
+   if (TMR1IF) {
+      TIME = TIME + 0x10000;
+      TMR1IF = 0;
+      }   
+   if (CCP1IF) {
+      TIME0 = TIME + CCPR1;
+      CCP1IF = 0;
+      }   
+   if (CCP2IF) {
+      TIME1 = TIME + CCPR2;
+      CCP2IF = 0;
+      }   
+   }
+
+// Subroutines
+#include        "lcd_portd.c"
+
+
+void LCD_Out(unsigned long int DATA, unsigned char N)
+{
+   unsigned char A[10], i;
+   
+   for (i=0; i<10; i++) {
+      A[i] = DATA % 10;
+      DATA = DATA / 10;
+   }
+   for (i=10; i>0; i--) {
+      if (i == N) LCD_Write('.');
+      LCD_Write(A[i-1] + '0');
+   }
+}
+
+
+
+// Main Routine
+
+void main(void)
+{
+   TRISA = 0;
+   TRISB = 0xFF;
+   TRISC = 0x04;	// capture every rising edge
+   TRISD = 0;
+   ADCON1 = 0x0F;
+ 
+// set up Timer1 for PS = 1
+   TMR1CS = 0;
+   T1CON = 0x81;
+   TMR1ON = 1;
+   TMR1IE = 1;
+   TMR1IP = 1;
+   PEIE = 1;
+// set up Capture1 for rising edges
+   TRISC2 = 1;
+   CCP1CON = 0x05;
+   CCP1IE = 1;
+   PEIE = 1;
+// set up Capture2 for falling edges
+   TRISC1 = 1;
+   CCP2CON = 0x04;
+   CCP2IE = 1;
+   PEIE = 1;
+
+   LCD_Init();
+   Wait_ms(100);
+
+   TIME = 0;
+
+// turn on all interrupts
+   GIE = 1;
+   
+   while(1) {
+      LCD_Move(0,0);  LCD_Out(TIME + TMR1, 7);
+      LCD_Move(1,0);  LCD_Out(TIME1 - TIME0, 7);
+      }
+   }
